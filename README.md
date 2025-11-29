@@ -5,17 +5,18 @@
 [![Docker Image Size](https://img.shields.io/docker/image-size/nitasheu/pausarr/latest)](https://hub.docker.com/r/nitasheu/pausarr)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/nitasheu/pausarr/docker-publish.yml?branch=main)](https://github.com/nitasheu/pausarr/actions)
 
-Automatically pause Docker containers when Jellyfin has an active session.
+Automatically pause Docker containers when media is playing in Jellyfin.
 
 I prefer to let Tdarr transcode whenever but it can slow down Jellyfin if
-someone is using it. Pausarr prevents slowdowns and keeps Jellyfin snappy.
+someone is streaming. Pausarr detects active playback and pauses resource-heavy
+containers to keep Jellyfin smooth. Simply browsing Jellyfin won't trigger a pause—only actual media playback will.
 
 Originally written for Tdarr but can now be used with multiple containers.
 
 ## Features
 
-- 🎬 Automatically pause containers when Jellyfin sessions are active
-- 🔄 Automatically unpause containers when all sessions end
+- 🎬 Automatically pause containers when media is playing in Jellyfin
+- 🔄 Automatically unpause containers when playback stops
 - 🌐 Beautiful web interface for configuration and monitoring
 - 🐳 Easy Docker deployment with docker-compose
 - 📊 Activity log and session monitoring
@@ -84,7 +85,7 @@ You can pre-configure Pausarr using environment variables in `docker-compose.yml
 | `JELLYFIN_URL` | URL of your Jellyfin server | `http://localhost:8096` |
 | `JELLYFIN_API_KEY` | Your Jellyfin API key | (required) |
 | `CONTAINERS_TO_PAUSE` | Comma-separated list of containers | (none) |
-| `CHECK_INTERVAL` | Seconds between session checks | `30` |
+| `CHECK_INTERVAL` | Seconds between playback checks | `30` |
 | `TZ` | Timezone | `UTC` |
 
 Example:

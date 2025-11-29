@@ -627,14 +627,14 @@
                             >
                         </div>
                         <div class="status-item">
-                            <span class="status-label">Sessions</span>
+                            <span class="status-label">Playback</span>
                             <span class="status-value">
                                 <span class="status-indicator">
                                     <span
                                         class="status-dot"
-                                        id="sessions-dot"
+                                        id="playing-dot"
                                     ></span>
-                                    <span id="sessions-status">Unknown</span>
+                                    <span id="playing-status">Unknown</span>
                                 </span>
                             </span>
                         </div>
@@ -1073,16 +1073,15 @@
                     status.last_check,
                 );
 
-                // Sessions status
-                const sessionsDot = document.getElementById("sessions-dot");
-                const sessionsStatus =
-                    document.getElementById("sessions-status");
-                if (status.sessions_active) {
-                    sessionsDot.className = "status-dot active";
-                    sessionsStatus.textContent = "Active";
+                // Playback status
+                const playingDot = document.getElementById("playing-dot");
+                const playingStatus = document.getElementById("playing-status");
+                if (status.playing_active) {
+                    playingDot.className = "status-dot active";
+                    playingStatus.textContent = "Playing";
                 } else {
-                    sessionsDot.className = "status-dot";
-                    sessionsStatus.textContent = "None";
+                    playingDot.className = "status-dot";
+                    playingStatus.textContent = "Idle";
                 }
 
                 // Containers status

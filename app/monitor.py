@@ -23,7 +23,7 @@ class MonitorStatus:
     running: bool = False
     last_check: Optional[datetime] = None
     last_action: Optional[str] = None
-    sessions_active: bool = False
+    playing_active: bool = False
     containers_paused: bool = False
     error: Optional[str] = None
     history: list[dict] = field(default_factory=list)
@@ -34,7 +34,7 @@ class MonitorStatus:
             "running": self.running,
             "last_check": self.last_check.isoformat() if self.last_check else None,
             "last_action": self.last_action,
-            "sessions_active": self.sessions_active,
+            "playing_active": self.playing_active,
             "containers_paused": self.containers_paused,
             "error": self.error,
             "history": self.history[-20:],  # Keep last 20 entries
@@ -50,7 +50,7 @@ class SessionMonitor:
         self._scheduler: Optional[BackgroundScheduler] = None
         self._status = MonitorStatus()
         self._lock = Lock()
-        self._prev_sessions_active = False
+        self._prev_playing_active = False
         self._jellyfin_client: Optional[JellyfinClient] = None
 
     @property
@@ -94,8 +94,8 @@ class SessionMonitor:
             # Get Jellyfin client
             client = self._get_jellyfin_client()
 
-            # Check for active sessions
-            has_sessions, error = client.has_active_sessions()
+            # Check for sessions with active playback (not just connected)
+            is_playing, error = client.has_playing_sessions()
 
             if error:
                 self._status.error = error
@@ -103,7 +103,7 @@ class SessionMonitor:
                 self._add_history("error", error)
                 return
 
-            self._status.sessions_active = has_sessions
+            self._status.playing_active = is_playing
 
             # Get enabled containers
             enabled_containers = config.get_enabled_containers()
@@ -111,10 +111,10 @@ class SessionMonitor:
             if not enabled_containers:
                 return
 
-            # State transition: no sessions -> sessions (pause containers)
-            if has_sessions and not self._prev_sessions_active:
-                logger.info("User connected to Jellyfin - pausing containers")
-                self._add_history("sessions_started", "User connected to Jellyfin")
+            # State transition: no playback -> playback started (pause containers)
+            if is_playing and not self._prev_playing_active:
+                logger.info("Playback started in Jellyfin - pausing containers")
+                self._add_history("playback_started", "Media playback started")
 
                 results = docker_manager.pause_containers(enabled_containers)
                 for name, (success, message) in results.items():
@@ -127,12 +127,10 @@ class SessionMonitor:
                 self._status.containers_paused = True
                 self._status.last_action = "Paused containers"
 
-            # State transition: sessions -> no sessions (unpause containers)
-            elif not has_sessions and self._prev_sessions_active:
-                logger.info(
-                    "All users disconnected from Jellyfin - unpausing containers"
-                )
-                self._add_history("sessions_ended", "All users disconnected")
+            # State transition: playback -> no playback (unpause containers)
+            elif not is_playing and self._prev_playing_active:
+                logger.info("Playback stopped in Jellyfin - unpausing containers")
+                self._add_history("playback_stopped", "Media playback stopped")
 
                 results = docker_manager.unpause_containers(enabled_containers)
                 for name, (success, message) in results.items():
@@ -147,7 +145,7 @@ class SessionMonitor:
                 self._status.containers_paused = False
                 self._status.last_action = "Unpaused containers"
 
-            self._prev_sessions_active = has_sessions
+            self._prev_playing_active = is_playing
 
     def start(self) -> bool:
         """Start the session monitor."""

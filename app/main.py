@@ -39,7 +39,7 @@ def index():
 
 @app.route("/api/status")
 def api_status():
-    """Get current monitor status."""
+    """Get current monitor status including playback state."""
     status = monitor.status.to_dict()
     status["config_enabled"] = config.get("enabled", True)
     return jsonify(status)
