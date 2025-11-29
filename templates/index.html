@@ -247,8 +247,10 @@
             }
 
             .btn:disabled {
-                opacity: 0.5;
+                opacity: 0.4;
                 cursor: not-allowed;
+                pointer-events: none;
+                filter: grayscale(50%);
             }
 
             .btn-group {
@@ -1057,15 +1059,22 @@
                 document.getElementById("global-status-text").textContent =
                     status.config_enabled ? "Enabled" : "Disabled";
 
-                // Monitor status
+                // Monitor status and button states
                 const monitorDot = document.getElementById("monitor-dot");
                 const monitorStatus = document.getElementById("monitor-status");
+                const btnStart = document.getElementById("btn-start-monitor");
+                const btnStop = document.getElementById("btn-stop-monitor");
+
                 if (status.running) {
                     monitorDot.className = "status-dot active";
                     monitorStatus.textContent = "Running";
+                    btnStart.disabled = true;
+                    btnStop.disabled = false;
                 } else {
                     monitorDot.className = "status-dot";
                     monitorStatus.textContent = "Stopped";
+                    btnStart.disabled = false;
+                    btnStop.disabled = true;
                 }
 
                 // Last check
@@ -1084,16 +1093,33 @@
                     playingStatus.textContent = "Idle";
                 }
 
-                // Containers status
+                // Containers status - check actual container states
                 const containersDot = document.getElementById("containers-dot");
                 const containersStatus =
                     document.getElementById("containers-status");
-                if (status.containers_paused) {
+
+                // Get actual container states from the containers API
+                const containers = await api("/containers");
+                const managedContainers = containers.filter(
+                    (c) => c.managed && c.enabled,
+                );
+                const pausedCount = managedContainers.filter(
+                    (c) => c.status === "paused",
+                ).length;
+                const totalManaged = managedContainers.length;
+
+                if (totalManaged === 0) {
+                    containersDot.className = "status-dot";
+                    containersStatus.textContent = "None managed";
+                } else if (pausedCount === totalManaged) {
                     containersDot.className = "status-dot paused";
-                    containersStatus.textContent = "Paused";
+                    containersStatus.textContent = `Paused (${pausedCount})`;
+                } else if (pausedCount > 0) {
+                    containersDot.className = "status-dot paused";
+                    containersStatus.textContent = `Mixed (${pausedCount}/${totalManaged})`;
                 } else {
                     containersDot.className = "status-dot active";
-                    containersStatus.textContent = "Running";
+                    containersStatus.textContent = `Running (${totalManaged})`;
                 }
 
                 // Error status
@@ -1197,9 +1223,33 @@
             }
 
             // Load sessions
+            let previousSessionsJson = "";
+
             async function loadSessions() {
                 const sessions = await api("/jellyfin/sessions");
                 const list = document.getElementById("sessions-list");
+
+                // Check if sessions changed to update playback status
+                const currentJson = JSON.stringify(sessions);
+                if (currentJson !== previousSessionsJson) {
+                    previousSessionsJson = currentJson;
+
+                    // Update playback indicator based on actual sessions
+                    const playingDot = document.getElementById("playing-dot");
+                    const playingStatus =
+                        document.getElementById("playing-status");
+                    const playingCount = sessions.filter(
+                        (s) => s.now_playing,
+                    ).length;
+
+                    if (playingCount > 0) {
+                        playingDot.className = "status-dot active";
+                        playingStatus.textContent = `Playing (${playingCount})`;
+                    } else {
+                        playingDot.className = "status-dot";
+                        playingStatus.textContent = "Idle";
+                    }
+                }
 
                 if (sessions.length === 0) {
                     list.innerHTML =
@@ -1214,11 +1264,11 @@
                     <div class="session-info">
                         <span class="session-user">${s.user_name || "Unknown"}</span>
                         <span class="session-device">${s.client} on ${s.device_name}</span>
-                        ${s.now_playing ? `<span class="session-playing">▶ ${s.now_playing}</span>` : ""}
+                        ${s.now_playing ? `<span class="session-playing">▶ ${s.now_playing}</span>` : '<span class="session-device">Not playing</span>'}
                     </div>
                     <span class="status-indicator">
-                        <span class="status-dot ${s.is_active ? "active" : ""}"></span>
-                        ${s.is_active ? "Active" : "Inactive"}
+                        <span class="status-dot ${s.now_playing ? "active" : ""}"></span>
+                        ${s.now_playing ? "Playing" : "Idle"}
                     </span>
                 </div>
             `,
@@ -1263,9 +1313,10 @@
             loadContainers();
             loadSessions();
 
-            // Auto-refresh every 10 seconds
-            setInterval(loadStatus, 10000);
-            setInterval(loadContainers, 15000);
+            // Auto-refresh - sessions more frequently for real-time feel
+            setInterval(loadStatus, 5000);
+            setInterval(loadContainers, 10000);
+            setInterval(loadSessions, 3000);
         </script>
     </body>
 </html>
