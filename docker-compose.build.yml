@@ -1,0 +1,30 @@
+# docker-compose.build.yml
+# Use this for local development/building:
+#   docker compose -f docker-compose.build.yml up -d --build
+
+services:
+  pausarr:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pausarr
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./config:/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - TZ=UTC
+      - DEBUG=false
+      # Optional: Pre-configure via environment variables
+      # - JELLYFIN_URL=http://jellyfin:8096
+      # - JELLYFIN_API_KEY=your_api_key_here
+      # - CONTAINERS_TO_PAUSE=tdarr,sonarr
+      # - CHECK_INTERVAL=30
+    networks:
+      - default
+
+networks:
+  default:
+    name: pausarr-network
